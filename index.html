@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>朋友圈使用人格测试</title>
+<script src="lib/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#FFF7F2;
+    --bg-grad:linear-gradient(180deg,#FFEFE7 0%,#FFF9F5 100%);
+    --card:#FFFFFF;
+    --primary:#FF6B6B;
+    --primary-deep:#EE5253;
+    --accent:#FFA94D;
+    --accent-deep:#F08C2E;
+    --ink:#3A312C;
+    --muted:#A89A90;
+    --line:#F3E4DB;
+    --shadow:0 12px 40px rgba(255,107,107,.14);
+    --shadow-sm:0 4px 16px rgba(255,107,107,.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:var(--bg-grad);
+    min-height:100vh;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  .hidden{display:none !important}
+
+  /* 顶部进度条 */
+  #progressBar{
+    position:fixed;top:0;left:0;right:0;height:4px;background:var(--line);z-index:100;
+  }
+  #progressFill{
+    height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--primary));
+    transition:width .4s ease;
+  }
+  #progressLabel{
+    position:fixed;top:14px;right:22px;font-size:13px;color:var(--muted);z-index:100;
+    font-weight:600;letter-spacing:.5px;
+  }
+
+  /* 封面 */
+  #cover{
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:60px 24px;position:relative;
+  }
+  .cover-moments{
+    width:300px;background:var(--card);border-radius:22px;box-shadow:var(--shadow);
+    padding:22px 24px;margin-bottom:36px;text-align:left;transform:rotate(-2deg);position:relative;
+  }
+  .cover-moments .head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--primary));
+    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .cover-moments .name{font-weight:700;font-size:15px}
+  .cover-moments .time{font-size:12px;color:var(--muted)}
+  .cover-moments .post{font-size:14px;line-height:1.8;color:var(--ink);margin-bottom:14px}
+  .cover-moments .post .hl{color:var(--primary);font-weight:700}
+  .cover-moments .divider{height:1px;background:var(--line);margin:12px 0}
+  .cover-moments .actions{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:13px}
+  .cover-moments .actions span{display:flex;align-items:center;gap:5px}
+  .cover-badge{
+    display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
+    border-radius:999px;padding:8px 18px;font-size:13px;color:var(--accent-deep);font-weight:600;
+    margin-bottom:26px;box-shadow:var(--shadow-sm);
+  }
+  #cover h1{
+    font-size:clamp(38px,7vw,64px);font-weight:800;letter-spacing:-1px;line-height:1.2;margin-bottom:18px;
+  }
+  #cover h1 .grad{
+    background:linear-gradient(120deg,var(--primary),var(--accent));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  #cover .sub{font-size:17px;color:var(--muted);max-width:460px;margin:0 auto 44px;line-height:1.7}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:17px 52px;border-radius:999px;border:none;cursor:pointer;
+    background:linear-gradient(120deg,var(--primary),var(--accent));color:#fff;
+    font-size:18px;font-weight:700;letter-spacing:1px;
+    box-shadow:0 10px 30px rgba(255,107,107,.35);transition:all .25s ease;
+  }
+  .btn:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(255,107,107,.45)}
+  .btn:active{transform:translateY(-1px)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn.ghost{background:transparent;color:var(--primary);border:2px solid var(--primary);box-shadow:none}
+  .cover-foot{position:absolute;bottom:32px;font-size:13px;color:var(--muted)}
+  .cover-foot b{color:var(--primary)}
+
+  /* 答题区 */
+  #quiz{max-width:640px;margin:0 auto;padding:80px 24px 120px;min-height:100vh}
+  .dim-tag{
+    display:inline-block;font-size:12px;font-weight:700;letter-spacing:1px;
+    color:var(--primary-deep);background:#FFEFE9;border-radius:8px;padding:5px 12px;margin-bottom:18px;
+  }
+  .q-text{font-size:clamp(19px,3.4vw,24px);font-weight:700;line-height:1.55;margin-bottom:30px}
+  .q-hint{font-size:14px;color:var(--muted);margin-bottom:26px}
+  .options{display:flex;flex-direction:column;gap:13px}
+  .opt{
+    display:flex;align-items:flex-start;gap:14px;background:var(--card);border:2px solid var(--line);
+    border-radius:16px;padding:17px 18px;cursor:pointer;transition:all .2s ease;text-align:left;
+    font-size:15px;line-height:1.6;color:var(--ink);position:relative;
+  }
+  .opt:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+  .opt .radio{
+    width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;margin-top:2px;
+    display:flex;align-items:center;justify-content:center;transition:all .2s ease;background:#fff;
+  }
+  .opt .radio::after{content:'';width:10px;height:10px;border-radius:50%;background:#fff;opacity:0;transition:all .2s ease}
+  .opt.selected{border-color:var(--primary);background:#FFF4F1;box-shadow:var(--shadow-sm)}
+  .opt.selected .radio{border-color:var(--primary);background:var(--primary)}
+  .opt.selected .radio::after{opacity:1}
+
+  /* 李克特题 */
+  .likert{display:flex;justify-content:space-between;gap:8px}
+  .likert .lk{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;padding:14px 6px;
+    border-radius:14px;border:2px solid var(--line);background:#fff;transition:all .2s ease;
+  }
+  .likert .lk:hover{border-color:var(--accent);transform:translateY(-3px)}
+  .likert .lk .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:#fff;transition:all .2s ease}
+  .likert .lk .lb{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
+  .likert .lk.selected{border-color:var(--primary);background:#FFF4F1}
+  .likert .lk.selected .dot{border-color:var(--primary);background:var(--primary)}
+  .likert-ends{display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--muted)}
+
+  /* 性别题 */
+  .gender-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .gender-card{
+    background:var(--card);border:2px solid var(--line);border-radius:20px;padding:34px 20px;
+    text-align:center;cursor:pointer;transition:all .2s ease;
+  }
+  .gender-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:var(--shadow-sm)}
+  .gender-card .emoji{font-size:44px;display:block;margin-bottom:12px}
+  .gender-card .gname{font-size:18px;font-weight:700}
+  .gender-card.selected{border-color:var(--primary);background:#FFF4F1;box-shadow:var(--shadow-sm)}
+
+  /* 导航按钮 */
+  .nav{display:flex;justify-content:space-between;margin-top:36px;gap:14px}
+  .nav .btn{padding:14px 30px;font-size:15px}
+
+  /* 加载动画 */
+  #loading{
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;
+  }
+  .heart-pulse{font-size:64px;animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+  .loading-text{font-size:18px;font-weight:700;margin-top:20px}
+  .loading-sub{font-size:14px;color:var(--muted);margin-top:8px}
+  .dots::after{content:'';animation:dots 1.4s steps(4,end) infinite}
+  @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+
+  /* 结果页 */
+  #result{max-width:680px;margin:0 auto;padding:70px 24px 100px}
+  .result-head{text-align:center;margin-bottom:30px}
+  .result-avatar{
+    width:180px;height:180px;margin:0 auto 24px;border-radius:28px;overflow:hidden;
+    box-shadow:0 14px 34px rgba(0,0,0,.16);border:5px solid #fff;background:#fff;
+    animation:pop-in .6s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  .result-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  @keyframes pop-in{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+  .result-dim{
+    display:inline-block;font-size:13px;font-weight:700;color:var(--primary-deep);
+    background:#FFEFE9;border-radius:999px;padding:6px 18px;margin-bottom:18px;letter-spacing:1px;
+  }
+  .result-name{font-size:clamp(34px,6vw,50px);font-weight:800;letter-spacing:-1px;
+    background:linear-gradient(120deg,var(--primary),var(--accent));
+    -webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:14px;
+  }
+  .result-quote{
+    font-family:"KaiTi","STKaiti","楷体",serif;font-size:18px;color:var(--ink);
+    background:#FFF4F1;border-radius:14px;padding:16px 20px;margin:0 0 28px;line-height:1.6;
+  }
+  .result-body{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:32px 28px;margin-bottom:24px}
+  .result-body p{font-size:15.5px;line-height:1.95;color:var(--ink);margin-bottom:16px}
+  .result-body p:last-child{margin-bottom:0}
+  .chart-card{background:var(--card);border-radius:22px;box-shadow:var(--shadow-sm);padding:24px;margin-bottom:20px}
+  .chart-card h3{font-size:16px;font-weight:700;margin-bottom:6px}
+  .chart-card .desc{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .chart{width:100%;height:400px}
+  #chartQuadrant{height:380px}
+  #chartRadar{height:470px}
+  .readouts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  .readout{background:var(--card);border-radius:18px;box-shadow:var(--shadow-sm);padding:22px}
+  .readout .r-label{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .readout .r-value{font-size:30px;font-weight:800;color:var(--primary);line-height:1}
+  .readout .r-bar{height:8px;background:var(--line);border-radius:99px;margin:12px 0 8px;overflow:hidden}
+  .readout .r-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--primary));border-radius:99px;transition:width .8s ease}
+  .readout .r-note{font-size:12.5px;color:var(--muted);line-height:1.6}
+  .result-actions{display:flex;justify-content:center;gap:14px;margin-top:10px}
+  .result-foot{text-align:center;font-size:12px;color:var(--muted);margin-top:36px;line-height:1.7}
+
+  @media(max-width:600px){
+    .gender-row{grid-template-columns:1fr}
+    .readouts{grid-template-columns:1fr}
+    .cover-moments{width:88%;max-width:300px}
+    .nav .btn{padding:13px 22px}
+  }
+</style>
+</head>
+<body>
+
+<div id="progressBar"><div id="progressFill"></div></div>
+<div id="progressLabel" class="hidden"></div>
+
+<!-- 封面 -->
+<section id="cover">
+  <div class="cover-badge">📱 一份关于朋友圈的走心测试</div>
+  <div class="cover-moments">
+    <div class="head">
+      <div class="avatar">🙂</div>
+      <div>
+        <div class="name">我</div>
+        <div class="time">刚刚</div>
+      </div>
+    </div>
+    <div class="post">有些话，编辑了一整晚<br>最后还是没发出去。<br>我在朋友圈里，<span class="hl">到底是个什么样的人？</span></div>
+    <div class="divider"></div>
+    <div class="actions">
+      <span>❤️ 赞</span><span>💬 评论</span><span>↗️ 分享</span>
+    </div>
+  </div>
+  <h1>朋友圈<span class="grad">使用人格</span>测试</h1>
+  <p class="sub">16 道题，测出你在朋友圈里的真实模样——是想说不敢说的纠结，还是想说就说的松弛。</p>
+  <button class="btn" id="startBtn">开始测试 →</button>
+  <div class="cover-foot">只需 2 分钟 · 结果仅存于本地 · 不涉及任何隐私数据</div>
+</section>
+
+<!-- 答题 -->
+<section id="quiz" class="hidden">
+  <div id="qArea"></div>
+  <div class="nav">
+    <button class="btn ghost" id="prevBtn">← 上一题</button>
+    <button class="btn" id="nextBtn">下一题 →</button>
+  </div>
+</section>
+
+<!-- 加载 -->
+<section id="loading" class="hidden">
+  <div class="heart-pulse">💌</div>
+  <div class="loading-text">正在分析你的朋友圈人格<span class="dots"></span></div>
+  <div class="loading-sub">翻看你的每一次犹豫、每一次删改、每一次鼓起勇气</div>
+</section>
+
+<!-- 结果 -->
+<section id="result" class="hidden">
+  <div class="result-head">
+    <div class="result-avatar"><img id="resImage" alt="人格形象" /></div>
+    <div class="result-dim" id="resDim"></div>
+    <div class="result-name" id="resName"></div>
+    <div class="result-quote" id="resQuote"></div>
+  </div>
+  <div class="result-body" id="resBody"></div>
+
+  <div class="chart-card">
+    <h3>你的人格定位</h3>
+    <div class="desc">横轴是「发表勇气」，纵轴是「表达意愿」，看你的点在四象限里落在哪</div>
+    <div class="chart" id="chartQuadrant"></div>
+  </div>
+
+  <div class="chart-card">
+    <h3>六个维度的读数</h3>
+    <div class="desc">分数越高，代表这个维度在你身上越明显</div>
+    <div class="chart" id="chartRadar"></div>
+  </div>
+
+  <div class="readouts">
+    <div class="readout">
+      <div class="r-label">主客我落差（自我审查强度）</div>
+      <div class="r-value" id="rGap">0</div>
+      <div class="r-bar"><i id="rGapBar"></i></div>
+      <div class="r-note" id="rGapNote"></div>
+    </div>
+    <div class="readout">
+      <div class="r-label">沉默指数（数字沉默程度）</div>
+      <div class="r-value" id="rSilence">0</div>
+      <div class="r-bar"><i id="rSilenceBar"></i></div>
+      <div class="r-note" id="rSilenceNote"></div>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <button class="btn" id="retestBtn">再测一次</button>
+    <button class="btn ghost" id="backBtn">回看我的答案</button>
+  </div>
+  <div class="result-foot">本测试为「数字边缘群体」研究项目的行为演示，结果基于你本次作答的计分，仅供参考，不构成任何心理诊断。<br>Vibe coding by AI · 数据仅存于本地浏览器</div>
+</section>
+
+<script>
+/* ============ 数据：题目 ============ */
+const LIKERT = [
+  { text: "很不同意", score: 1 },
+  { text: "比较不同意", score: 2 },
+  { text: "中立", score: 3 },
+  { text: "比较同意", score: 4 },
+  { text: "很同意", score: 5 },
+];
+
+const QUESTIONS = [
+  {
+    id: "gender", type: "gender", dim: "关于你",
+    text: "先告诉我们，你是：",
+    options: [
+      { text: "女生", emoji: "👩" },
+      { text: "男生", emoji: "👨" },
+    ],
+  },
+  // ---- 维度 A：群体排斥恐惧（客我侧）----
+  { id: "A1", dim: "群体排斥恐惧", dimSide: "客我侧",
+    text: "你精心包装了九宫格朋友圈，1 个小时过去了，发出去的内容迟迟没人点赞评论，你是否会忍不住想把它删掉：",
+    options: [
+      { text: "你们这群冷漠的人！全部删掉", score: 5 },
+      { text: "再等等，万一只是这个时候大家不看朋友圈不刷手机不上网进山去了呢？绝对没有破防的意思......", score: 4 },
+      { text: "好懵逼啊，事已至此先吃个饭吧", score: 3 },
+      { text: "发都发了，留着呗", score: 2 },
+      { text: "当然留着，朕的魅力无需他人证明", score: 1 },
+    ] },
+  { id: "A2", dim: "群体排斥恐惧", dimSide: "客我侧",
+    text: "一个半生不熟的朋友发了一条你很感兴趣的内容，你忍不住在下面留了言，这时你：",
+    options: [
+      { text: "反复看自己的评论，越看越奇怪，会不会让别人觉得突兀？趁 ta 没回复先删了", score: 5 },
+      { text: "再过 30 分钟，要是 ta 没回复我就删了", score: 4 },
+      { text: "扔个硬币看正反，正面我就删，反面我就留", score: 3 },
+      { text: "留着，为了找到同好，为 i 做 e 又何妨！", score: 2 },
+      { text: "当然留，千里缘分网络牵，这是我扩列的好机会。", score: 1 },
+    ] },
+  { id: "A3", dim: "群体排斥恐惧", dimSide: "客我侧",
+    text: "大部分时候，我点赞、评论一些内容，其实只是为了不显得自己和大家脱节，对此你觉得：",
+    options: [
+      { text: "这是一种社交的手腕，不给大家点赞大家也不会给我点赞", score: 5 },
+      { text: "这对维持关系是有必要的，我只给在乎或者熟悉的人点赞评论", score: 4 },
+      { text: "随便吧毁灭吧，刷到哪个点哪个，顺便在对方朋友圈混个眼熟", score: 3 },
+      { text: "维持高冷神秘人设更重要，路过会偶尔点赞评论一下", score: 2 },
+      { text: "神总是孤单的，我根本不给别人点赞评论", score: 1 },
+    ] },
+  // ---- 维度 B：感知社会规范压力（客我侧）----
+  { id: "B1", dim: "感知社会规范压力", dimSide: "客我侧",
+    text: "虽然没人说，但我觉得朋友圈里有一套隐形规则，我知道什么内容发了会受欢迎、什么发了会不受欢迎，对此你觉得：",
+    options: [
+      { text: "一身屌丝味的我怎敢碰精装朋友圈的你", score: 5 },
+      { text: "偶尔在朋友圈发发疯，大部分时候必须维持人设，吐槽还得在 qq 空间", score: 4 },
+      { text: "具体情况具体分析，不是不发，而是缓发慢发优发，有节奏地发", score: 3 },
+      { text: "大部分时候想发就发了，受不受欢迎另说", score: 2 },
+      { text: "去，哪来那么多规矩，我想发啥发啥", score: 1 },
+    ] },
+  { id: "B2", dim: "感知社会规范压力", dimSide: "客我侧",
+    text: "发朋友圈之前，我会反复揣摩别人看到这条会怎么想我。",
+    options: [
+      { text: "如同一个产品经理反复研究用户画像，群体 a 会怎么想我？群体 b 会怎么想我...... 为什么朋友圈不能做 ab test", score: 5 },
+      { text: "无法捂着耳朵向前冲，大部分时候都会想", score: 4 },
+      { text: "我不懂你的心～假装冷静～揣摩半天发现揣摩不明白", score: 3 },
+      { text: "只会简单想一下，但整体不太在乎", score: 2 },
+      { text: "我根本不在乎别人是怎么想我🙄，因为我有魅力的要命💅，事实上他们还能想什么呢", score: 1 },
+    ] },
+  // ---- 维度 C：自我审查意愿（客我侧）----
+  { id: "C1", dim: "自我审查意愿", dimSide: "客我侧",
+    text: "发布前，我经常反复删改文案、斟酌措辞：",
+    options: [
+      { text: "总是这样，世另我，监控拆了！", score: 5 },
+      { text: "大部分时候这样，见人得说人话，见鬼得说鬼话。", score: 4 },
+      { text: "有时这样，谨言慎行是中华民族的美好品德。", score: 3 },
+      { text: "偶尔会这样，比起内耗，外耗人生更美丽💗", score: 2 },
+      { text: "从不这样，两眼一闭就是发。", score: 1 },
+    ] },
+  { id: "C2", dim: "自我审查意愿", dimSide: "客我侧",
+    text: "我常常编辑好一条朋友圈，最后又按下了取消：",
+    options: [
+      { text: "总是这样，没有一条朋友圈能从我的草稿箱里活着出来。", score: 5 },
+      { text: "大部分时候都这样，听我说，取消发布只是一种战略性撤退......", score: 4 },
+      { text: "有时这样，有些内容不用思考就可以发，有些内容思考再三还是不准备发。", score: 3 },
+      { text: "偶尔会取消，朋友圈都编辑好了为什么不发？", score: 2 },
+      { text: "从不取消，真女/男人不撤回！", score: 1 },
+    ] },
+  { id: "C3", dim: "自我审查意愿", dimSide: "客我侧",
+    text: "发完后我会频繁点开，看谁点了赞、评论了什么。",
+    options: [
+      { text: "总是这样，不看我心痒。", score: 5 },
+      { text: "大部分时候这样，趁机视奸谁在关注我。", score: 4 },
+      { text: "有时候这样，想到了就会点开看一下。", score: 3 },
+      { text: "偶尔会这样，大部分时候不会特意关注别人的反馈。", score: 2 },
+      { text: "从不这样，别人的任何消息 i don't car，专心经营自己的呆萌生活。", score: 1 },
+    ] },
+  // ---- 维度 D：社交倦怠程度（主我侧反向，李克特）----
+  { id: "D1", dim: "社交倦怠程度", dimSide: "主我侧", type: "likert",
+    text: "刷朋友圈现在更多是一种惯性，刷完常常觉得空虚。" },
+  { id: "D2", dim: "社交倦怠程度", dimSide: "主我侧", type: "likert",
+    text: "看到新消息红点，我的第一反应是疲惫，而不是好奇。" },
+  { id: "D3", dim: "社交倦怠程度", dimSide: "主我侧", type: "likert", reverse: true,
+    text: "刷朋友圈依然能让我感到放松和愉快。" },
+  // ---- 维度 E：表达动机强度（主我侧正向）----
+  { id: "E1", dim: "表达动机强度", dimSide: "主我侧",
+    text: "遇到触动我的事，我的第一反应是想分享出去。",
+    options: [
+      { text: "已经过了表达欲旺盛的年纪了，没必要啥都跟人分享。", score: 1 },
+      { text: "大部分时候不分享，一按分享键就拔剑四顾心茫然了，不知道分享给谁。", score: 2 },
+      { text: "碰到真的有趣的事，会选择性分享给别人。", score: 3 },
+      { text: "大多数时候我会分享给别人，万一低山臭水遇知音了呢？", score: 4 },
+      { text: "这么有趣的事只有我一个人知道太可惜，必须得分享给所有人。", score: 5 },
+    ] },
+  { id: "E2", dim: "表达动机强度", dimSide: "主我侧",
+    text: "心里有了一个天才般奇妙的想法，我会忍不住想把它说出来。",
+    options: [
+      { text: "天才总是孤独的，不用说出来，我自会在心里跟自己对话。", score: 1 },
+      { text: "大部分时候不会说出来，我还需要沉淀一下。", score: 2 },
+      { text: "偶尔心情好或者看对眼了就会说出来。", score: 3 },
+      { text: "大部分时候我会说出来，说不定还能收获新的灵感。", score: 4 },
+      { text: "有想法一点也憋不住，必须找人倾诉一下！", score: 5 },
+    ] },
+  // ---- 维度 F：表达自主性（主我侧正向）----
+  { id: "F1", dim: "表达自主性", dimSide: "主我侧",
+    text: "我发朋友圈更多是为自己记录，还是为别人点赞？",
+    options: [
+      { text: "我的朋友圈完全离不开点赞，就像西方不能失去耶路撒冷......", score: 1 },
+      { text: "路过的姐哥们点个免费的小心心，我的朋友圈就变得更温馨。", score: 2 },
+      { text: "点赞也是可以的，不点赞也是可以的，都可以。", score: 3 },
+      { text: "有人点赞当然很好，但我更喜欢在朋友圈记录自己的所想所思、所见所闻。", score: 4 },
+      { text: "朋友圈只是我的电子日记，别人点不点赞其实根本不重要。", score: 5 },
+    ] },
+  { id: "F2", dim: "表达自主性", dimSide: "主我侧", reverse: true,
+    text: "朋友圈里，我发什么、发不发，更多取决于别人想看什么：",
+    options: [
+      { text: "我总是会下意识按照大多数人认可的内容发朋友圈。", score: 5 },
+      { text: "我承认大多数时候自己会考虑他人的想法，来决定应该发什么内容。", score: 4 },
+      { text: "偶尔我会参考他人的偏好，选择性包装下发表的内容。", score: 3 },
+      { text: "大多数时候我根本不管别人会怎么想，没有讨好型人格的义务。", score: 2 },
+      { text: "我总是想发啥就发啥，我的朋友圈当然我做主。", score: 1 },
+    ] },
+];
+
+/* ============ 数据：人格画像 ============ */
+const PERSONAS = {
+  "hi-hi": {
+    dim: "表达意愿高 × 发表勇气高",
+    male: {
+      name: "狂霸龙傲天",
+      image: "images/p1-kuangba.png",
+      quote: "“酷霸狂拽炫，你也深深为这样的我着迷吧？”",
+      body: [
+        "你发朋友圈的决策链条短得离谱，想到、拍了、发。你从来没觉得需要向谁报备自己的生活，“这样会不会太张扬？”“他会不会觉得我在炫耀？”的苦恼，在你这里根本不存在。你几乎不内耗，同一件事，别人要在心里过八遍，你过零遍。这让你在情绪上省下了大量精力，可以拿去做正事，因此也常被视作别人眼中的“高精力人群”。",
+        "别人眼里的你有点显眼包，没心没肺，但你自己心里清楚，你只是真的不太在意别人怎么评价你。你的朋友圈就像一座大大方方对外开放的花园，谁都能进来看，谁都可以带走余香，但看完怎么想是他的事。",
+        "你这种与生俱来的松弛感让很多人羡慕，但有时候你的坦荡偶尔会变成一种“钝”，忽视了他人可能的情绪。",
+      ],
+    },
+    female: {
+      name: "话唠小太阳",
+      image: "images/p2-taiyang.png",
+      quote: "“不是为了救赎任何人而出现，而是我本来就这么温暖。”",
+      body: [
+        "你乐于分享，也几乎不设防。发朋友圈这件事对你来说从来不是任务，更用不着反复权衡，只是随手记下那些值得留住的瞬间，比如，一顿好吃的饭，下班路上突然冒出来的一个念头，或者一张随手拍下的天。",
+        "你想到什么就写什么，不太斟酌措辞，也不在意句子漂不漂亮，因为你要留住的只是那一刻，而不是别人眼里的那一刻。你既不缺想说的，也不怕说错，发得自然又松弛，甚至有点随性。也正因为这样，你的内容里有种别人学不来的真实。",
+      ],
+    },
+  },
+  "hi-lo": {
+    dim: "表达意愿高 × 发表勇气低",
+    male: {
+      name: "阴湿白切黑",
+      image: "images/p3-baiqiehei.png",
+      quote: "“表面笑嘻嘻，暗地破防记仇吃醋三连招。”",
+      body: [
+        "你想被看见，又怕被看穿。你有强烈的表达欲，渴望被看见、被回应，可每一句话、每一张图，都要先经过一道严格的自我检查。发之前，你会反复修图，来回改文案，字斟句酌地调整语气，这样发会不会显得太刻意，这句话别人会不会误会；发之后，你又忍不住一遍遍刷新，盯着点赞和评论，暗自揣测每一条反馈背后的意思。",
+        "想说的冲动一直推着你往前走，怕被评判的担忧又死死拽着你，你干脆把每一次出场都打磨成一场滴水不漏的演出。于是你的朋友圈精致、得体、挑不出毛病，却也因为这份周全少了点松弛。",
+      ],
+    },
+    female: {
+      name: "老实乖乖女",
+      image: "images/p4-guainv.png",
+      quote: "“是模范生，是别人家的孩子，直到端庄的大小姐有一天想出逃。”",
+      body: [
+        "你心里装着很多天马行空的话，想说点出格的、发点大胆的，可每一句到了嘴边，都要先经过一道自己设下的检查。发之前，你会把语气改得委婉，把字眼换得更安全，反复掂量这句话会不会太张扬、那张图会不会太越界；发之后，你又开始不放心，翻来覆去地看有谁点了赞、有谁没吭声，暗自琢磨别人是不是觉得你变了样。",
+        "你发出去的很少是心里真正想说的那些话，而是你反复修饰过、估摸着别人能接受的那一点。想越轨的念头一直推着你往前，怕被人议论的顾虑又死死拽着你，你干脆把每一次想说的大胆都咽回去，只留下一个温顺、规矩、挑不出错的样子，安分，却少了一点真正的你。",
+      ],
+    },
+  },
+  "lo-hi": {
+    dim: "表达意愿低 × 发表勇气高",
+    male: {
+      name: "清冷禁欲佛子",
+      image: "images/p5-fozi.png",
+      quote: "“明月高悬不独照我，看破红尘不入人间。”",
+      body: [
+        "你并非不敢发，只是不太想发。你几乎不会因为别人的眼光而焦虑，也不会因为自己长久沉默而感到不安，你从不觉得生活非得搬到朋友圈里、被一群人围观才算真正发生过。相比之下，你更愿意做一个安静的观察者，看着别人在屏幕那头热闹、起落、展演，自己在一旁留一份清醒和分寸。",
+        "偶尔你也发，但发得很淡、很克制，不刷存在感，也不解释自己为什么长时间不说话。沉默对你而言从来不是压抑，更不是胆怯，而是一种经过思考后的主动选择，你清楚自己不需要靠输出内容来证明什么。",
+      ],
+    },
+    female: {
+      name: "木头铁壁女",
+      image: "images/p6-mutou.png",
+      quote: "“平时淡淡地允许一切发生，关键时刻重拳出击、一语惊人。”",
+      body: [
+        "你拥有表达的底气，却依然选择了保留。你不说话，不是因为害怕被评判、被孤立，恰恰相反，你心里的安全感足够扎实，扎实到不需要通过一条条动态去向外界索取关注和认可。你比很多人更清楚，什么值得说，什么不必说，什么时候该开口，什么时候该沉默。",
+        "你享受旁观的距离感，也珍惜把精力留给真实生活本身的那种踏实。这种不刻意、不张扬、不刷存在感的安静，不是社交能力的缺失，而是你把自己和外界的关系看得足够通透之后，自然形成的一种姿态，我在场，但我选择不说。",
+      ],
+    },
+  },
+  "lo-lo": {
+    dim: "表达意愿低 × 发表勇气低",
+    male: {
+      name: "自卑回避小狗",
+      image: "images/p7-xiaogou.png",
+      quote: "“一个可怜兮兮的流浪狗，不敢奢求爱但渴望爱。”",
+      body: [
+        "你既没有太多想说的，也不太敢说。发朋友圈这件事，对你来说是两份消耗同时压在身上。一份来自身体和情绪深处的疲惫，让你提不起劲去组织语言、经营互动；一份来自外界的隐隐压力，让你害怕说错、害怕被评价、害怕自己呈现出来的样子不够好。",
+        "比起被看见，不如主动隐身。你很少出现，即使偶尔鼓起勇气发一条，也常常在几秒或几小时后悄悄删掉，或者改成仅自己可见。表达于你或许早已不是一种愉悦，而是一件想起来就想逃开的负担。",
+      ],
+    },
+    female: {
+      name: "敏感脆弱白月光",
+      image: "images/p8-baiyueguang.png",
+      quote: "“古早青春疼痛文学女主角，她的美丽带着脆弱的苍白。”",
+      body: [
+        "在这方小小的朋友圈里，你既找不到开口的理由，也攒不起开口的底气。长期的倦怠让你懒得说，不是没有感受，而是觉得说了也没人真正在意，不如算了；长期的不安全感又让你不敢说，怕被误解、怕被评头论足、怕自己一旦出现就成了被审视的对象。",
+        "最终你习惯了把自己藏起来，做一个不被注意、也尽量不去打扰任何人的人。你不是不在意，恰恰是因为太在意，又太疲惫，才选择了隐身这种最省力、也最不会受伤的自我保护。只是藏得久了，连你自己偶尔也会分不清，这究竟是一种选择，还是一种被困住。",
+      ],
+    },
+  },
+};
+
+/* ============ 计分引擎 ============ */
+function finalScore(q, optIndex) {
+  const qDef = QUESTIONS.find(x => x.id === q);
+  if (qDef.type === "likert") {
+    const s = optIndex + 1; // 1..5
+    return qDef.reverse ? 6 - s : s;
+  }
+  const raw = qDef.options[optIndex].score;
+  return qDef.reverse ? 6 - raw : raw;
+}
+
+function computeScores(answers) {
+  const groups = {
+    "群体排斥恐惧": ["A1", "A2", "A3"],
+    "感知社会规范压力": ["B1", "B2"],
+    "自我审查意愿": ["C1", "C2", "C3"],
+    "社交倦怠程度": ["D1", "D2", "D3"],
+    "表达动机强度": ["E1", "E2"],
+    "表达自主性": ["F1", "F2"],
+  };
+  const indicator = {};
+  for (const [dim, ids] of Object.entries(groups)) {
+    const max = ids.length * 5;
+    const sum = ids.reduce((a, id) => a + answers[id], 0);
+    indicator[dim] = Math.round((sum / max) * 100);
+  }
+  const courage = Math.max(0, Math.min(100,
+    100 - Math.round((indicator["群体排斥恐惧"] + indicator["感知社会规范压力"] + indicator["自我审查意愿"]) / 3)));
+  const will = Math.max(0, Math.min(100,
+    Math.round((indicator["表达动机强度"] + indicator["表达自主性"] + (100 - indicator["社交倦怠程度"])) / 3)));
+
+  let quad;
+  if (will >= 50 && courage >= 50) quad = "hi-hi";
+  else if (will >= 50 && courage < 50) quad = "hi-lo";
+  else if (will < 50 && courage >= 50) quad = "lo-hi";
+  else quad = "lo-lo";
+
+  return { indicator, courage, will, quad };
+}
+
+/* ============ 状态 ============ */
+const TOTAL = QUESTIONS.length;
+let cur = 0;
+const answers = {}; // id -> 选项索引(0-based)
+
+/* ============ DOM ============ */
+const $ = id => document.getElementById(id);
+const cover = $("cover"), quiz = $("quiz"), loading = $("loading"), result = $("result");
+const qArea = $("qArea"), progressFill = $("progressFill"), progressLabel = $("progressLabel");
+const prevBtn = $("prevBtn"), nextBtn = $("nextBtn");
+
+let charts = {};
+
+function show(section) {
+  [cover, quiz, loading, result].forEach(s => s.classList.add("hidden"));
+  section.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+}
+
+function renderQuestion() {
+  const q = QUESTIONS[cur];
+  const isGender = q.type === "gender";
+  const isLikert = q.type === "likert";
+  const selected = answers[q.id];
+
+  let optsHtml = "";
+
+  if (isGender) {
+    optsHtml = `<div class="gender-row">` + q.options.map((o, i) => `
+      <div class="gender-card ${selected === i ? "selected" : ""}" data-idx="${i}">
+        <span class="emoji">${o.emoji}</span>
+        <div class="gname">${o.text}</div>
+      </div>`).join("") + `</div>`;
+  } else if (isLikert) {
+    optsHtml = `<div class="likert">` + LIKERT.map((o, i) => `
+      <div class="lk ${selected === i ? "selected" : ""}" data-idx="${i}">
+        <div class="dot"></div>
+        <div class="lb">${o.text}</div>
+      </div>`).join("") + `</div>
+      <div class="likert-ends"><span>很不同意</span><span>很同意</span></div>`;
+  } else {
+    optsHtml = q.options.map((o, i) => `
+      <div class="opt ${selected === i ? "selected" : ""}" data-idx="${i}">
+        <div class="radio"></div>
+        <div>${o.text}</div>
+      </div>`).join("");
+  }
+
+  qArea.innerHTML = `
+    <div class="q-text">${q.text}</div>
+    ${isLikert ? '<div class="q-hint">请根据你的真实感受，选择同意程度</div>' : ""}
+    <div class="options">${optsHtml}</div>
+  `;
+
+  // 绑定选项点击
+  qArea.querySelectorAll("[data-idx]").forEach(el => {
+    el.addEventListener("click", () => {
+      const idx = parseInt(el.dataset.idx, 10);
+      if (answers[q.id] === idx) {
+        delete answers[q.id]; // 再点一次取消选择
+      } else {
+        answers[q.id] = idx;
+      }
+      renderQuestion();
+    });
+  });
+
+  // 进度
+  const answered = Object.keys(answers).length;
+  progressFill.style.width = (answered / TOTAL * 100) + "%";
+  progressLabel.textContent = `${answered} / ${TOTAL}`;
+
+  // 按钮状态
+  prevBtn.classList.toggle("hidden", cur === 0);
+  const isLast = cur === TOTAL - 1;
+  nextBtn.textContent = isLast ? "查看我的结果 ✨" : "下一题 →";
+  nextBtn.disabled = selected === undefined;
+}
+
+/* ============ 事件 ============ */
+$("startBtn").addEventListener("click", () => {
+  progressLabel.classList.remove("hidden");
+  cur = 0;
+  renderQuestion();
+  show(quiz);
+});
+
+prevBtn.addEventListener("click", () => {
+  if (cur > 0) { cur--; renderQuestion(); }
+});
+
+nextBtn.addEventListener("click", () => {
+  const q = QUESTIONS[cur];
+  if (answers[q.id] === undefined) return;
+  if (cur < TOTAL - 1) {
+    cur++;
+    renderQuestion();
+  } else {
+    runAnalysis();
+  }
+});
+
+$("retestBtn").addEventListener("click", () => {
+  for (const k in answers) delete answers[k];
+  cur = 0;
+  renderQuestion();
+  show(quiz);
+});
+
+$("backBtn").addEventListener("click", () => {
+  cur = TOTAL - 1;
+  renderQuestion();
+  show(quiz);
+});
+
+/* ============ 结果展示 ============ */
+function runAnalysis() {
+  show(loading);
+  setTimeout(() => {
+    show(result);
+    renderResult();
+  }, 1800);
+}
+
+function renderResult() {
+  // 性别映射
+  const genderIdx = answers["gender"];
+  const gender = genderIdx === 0 ? "female" : "male";
+  const qs = {};
+  for (const q of QUESTIONS) {
+    if (q.id === "gender") continue;
+    qs[q.id] = finalScore(q.id, answers[q.id]);
+  }
+  const { indicator, courage, will, quad } = computeScores(qs);
+  const persona = PERSONAS[quad][gender];
+
+  // 文字
+  $("resImage").src = persona.image;
+  $("resImage").alt = persona.name;
+  $("resDim").textContent = persona.dim;
+  $("resName").textContent = persona.name;
+  $("resQuote").textContent = persona.quote;
+  $("resBody").innerHTML = persona.body.map(p => `<p>${p}</p>`).join("");
+
+  // 诊断读数
+  const gap = will - courage; // 主客我落差
+  const silence = 100 - courage; // 沉默指数
+  const gapVal = Math.abs(gap);
+  $("rGap").textContent = gapVal;
+  $("rGapBar").style.width = Math.min(100, Math.max(0, gapVal)) + "%";
+  $("rGapNote").textContent = gap >= 0
+    ? "你的「想说」压过了「敢说」，心里憋着的话比发出去的更多。"
+    : "你的「敢说」比「想说」还多，想发的时候并不缺底气。";
+  $("rSilence").textContent = silence;
+  $("rSilenceBar").style.width = Math.min(100, Math.max(0, silence)) + "%";
+  $("rSilenceNote").textContent = silence >= 50
+    ? "你正一步步从「不敢发」滑向「不想来」，这是沉默的螺旋走到终点前的样子。"
+    : "你离「退场」还远，朋友圈对你仍有声音。";
+
+  // 图表
+  renderQuadrant(courage, will, quad);
+  renderRadar(indicator);
+}
+
+function renderQuadrant(courage, will, quad) {
+  if (charts.quad) charts.quad.dispose();
+  charts.quad = echarts.init($("chartQuadrant"));
+  const quadLabels = {
+    "hi-hi": { text: "高意愿·高勇气", x: 78, y: 88 },
+    "hi-lo": { text: "高意愿·低勇气", x: 22, y: 88 },
+    "lo-hi": { text: "低意愿·高勇气", x: 78, y: 12 },
+    "lo-lo": { text: "低意愿·低勇气", x: 22, y: 12 },
+  };
+  const option = {
+    backgroundColor: "transparent",
+    grid: { left: 44, right: 20, top: 20, bottom: 44 },
+    xAxis: {
+      type: "value", min: 0, max: 100, name: "发表勇气 →",
+      nameLocation: "middle", nameGap: 30,
+      splitLine: { lineStyle: { color: "#f0e2da" } },
+      axisLine: { lineStyle: { color: "#e8d5cb" } },
+      axisLabel: { color: "#a89a90" },
+    },
+    yAxis: {
+      type: "value", min: 0, max: 100, name: "表达意愿 →",
+      nameLocation: "middle", nameGap: 34,
+      splitLine: { lineStyle: { color: "#f0e2da" } },
+      axisLine: { lineStyle: { color: "#e8d5cb" } },
+      axisLabel: { color: "#a89a90" },
+    },
+    series: [{
+      type: "scatter",
+      symbolSize: 30,
+      data: [{ value: [courage, will] }],
+      itemStyle: { color: "#FF6B6B", shadowBlur: 16, shadowColor: "rgba(255,107,107,.6)" },
+      markLine: {
+        silent: true, symbol: "none",
+        lineStyle: { color: "#e8d5cb", type: "dashed" },
+        label: { show: false },
+        data: [{ xAxis: 50 }, { yAxis: 50 }],
+      },
+      label: {
+        show: true, position: "top", formatter: "你在这里",
+        color: "#EE5253", fontWeight: 700, fontSize: 15,
+      },
+    }],
+    graphic: Object.values(quadLabels).map(l => ({
+      type: "text",
+      left: l.x + "%",
+      top: l.y + "%",
+      style: { text: l.text, fill: "#b0a49b", fontSize: 14, fontWeight: 600 },
+    })),
+  };
+  charts.quad.setOption(option);
+}
+
+function renderRadar(indicator) {
+  if (charts.radar) charts.radar.dispose();
+  charts.radar = echarts.init($("chartRadar"));
+  const dims = ["群体排斥恐惧", "感知社会规范压力", "自我审查意愿", "社交倦怠程度", "表达动机强度", "表达自主性"];
+  const option = {
+    backgroundColor: "transparent",
+    tooltip: {},
+    radar: {
+      indicator: dims.map(d => ({ name: d, max: 100 })),
+      radius: "68%",
+      splitNumber: 4,
+      axisName: { color: "#6b5b51", fontSize: 13 },
+      splitArea: { areaStyle: { color: ["#fffaf6", "#fff4ee"] } },
+      splitLine: { lineStyle: { color: "#f0e2da" } },
+      axisLine: { lineStyle: { color: "#e8d5cb" } },
+    },
+    series: [{
+      type: "radar",
+      data: [{
+        value: dims.map(d => indicator[d]),
+        name: "你的读数",
+        areaStyle: { color: "rgba(255,107,107,.22)" },
+        lineStyle: { color: "#FF6B6B", width: 2 },
+        itemStyle: { color: "#FF6B6B" },
+      }],
+    }],
+  };
+  charts.radar.setOption(option);
+}
+
+window.addEventListener("resize", () => {
+  if (charts.quad) charts.quad.resize();
+  if (charts.radar) charts.radar.resize();
+});
+</script>
+</body>
+</html>
